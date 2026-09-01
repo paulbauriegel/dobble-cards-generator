@@ -3,7 +3,7 @@ import random
 import numpy as np
 from PIL import Image, ImageDraw
 
-from dobble.packing import pack_card, shape_reference, size_ladder
+from dobble.packing import orientations, pack_card, shape_reference, size_ladder
 from dobble.render import render_packed
 
 
@@ -47,3 +47,35 @@ def test_render_packed_returns_card_and_placements():
     assert len(result.placements) == 4
     assert result.image.getpixel((0, 0))[3] == 0            # transparent corner
     assert result.image.getpixel((100, 100))[3] == 255      # opaque centre
+
+
+def test_orientations_are_45_steps_nearest_first():
+    angles = orientations(random.Random(3), max_rotation=0)
+    assert len(angles) == 8
+    assert sorted(a % 360 for a in angles) == [0, 45, 90, 135, 180, 225, 270, 315]
+    base = angles[0]
+    assert base % 45 == 0
+    assert [(a - base) % 360 for a in angles] == [0, 45, 315, 90, 270, 135, 225, 180]
+    jittered = orientations(random.Random(3), max_rotation=10)
+    for a in jittered:
+        off = (a + 22.5) % 45 - 22.5         # distance to the nearest multiple of 45
+        assert abs(off) <= 10
+        assert 0 <= a < 360
+
+
+def test_orientations_rejects_bad_step():
+    import pytest
+    for step in (0, 50):
+        with pytest.raises(ValueError):
+            orientations(random.Random(0), 0, step=step)
+
+
+def test_pack_card_uses_random_base_orientation():
+    seen = set()
+    for seed in range(6):
+        spots, _, _ = pack_card(BLOBS, [0, 1, 2, 3], random.Random(seed), 100, gap_px=2,
+                                base_size=0.4, max_rotation=0)
+        for _, _, _, angle in spots:
+            assert angle % 45 == 0
+            seen.add(angle)
+    assert len(seen) > 1                     # symbols no longer all face the same way

@@ -14,7 +14,8 @@ theme.json keys (all optional except name):
   back          card back image, relative to the theme folder
   back_zoom     enlarge the back image so its edge lies outside the cut line (default 1.0)
   fetch         {"script": "fetch.py", "args": [...]} run by `dobble fetch` with --out <raw_dir>
-  render        default build settings: base_size, gap, max_rotation
+  render        default build settings: base_size, gap, max_rotation (jitter in degrees on top
+                of each symbol's random 45-degree base orientation)
 
 Relative paths resolve against the folder of the theme.json that defines them, so an inherited
 `back` still points into the base theme's folder.

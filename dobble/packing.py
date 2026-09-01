@@ -15,6 +15,9 @@ SMALLEST_RANK = _LADDER_8[-1]
 # or thin artwork gets about as much visible area as a compact one. See shape_reference().
 SHAPE_FACTOR_RANGE = (0.8, 2.0)
 
+# Every symbol gets a random base orientation in steps of this many degrees, see orientations().
+ROTATION_STEP = 45
+
 
 def size_ladder(k):
     """Relative sizes of the k ranks on a card, largest first, from 1.0 down to SMALLEST_RANK."""
@@ -31,6 +34,25 @@ def scaled_rotated(img, long_side, angle):
     scale = long_side / max(w, h)
     img = img.resize((max(1, round(w * scale)), max(1, round(h * scale))), Image.LANCZOS)
     return img.rotate(angle, resample=Image.BICUBIC, expand=True) if angle else img
+
+
+def orientations(rng, max_rotation, step=ROTATION_STEP):
+    """Candidate angles for one symbol, in degrees within [0, 360).
+
+    The first is a random multiple of `step` plus a jitter of up to +-max_rotation, so symbols face
+    random directions instead of all standing upright. The rest are the other multiples of `step`
+    with the same jitter, nearest first, which the packer tries when the symbol does not fit as drawn.
+    """
+    if step <= 0 or 360 % step:
+        raise ValueError(f"rotation step must divide 360, got {step}")
+    n = int(360 // step)
+    base = rng.randrange(n) * step + rng.uniform(-max_rotation, max_rotation)
+    deltas = [0]
+    for k in range(1, n // 2 + 1):
+        deltas.append(k * step)
+        if 2 * k != n:              # 180 degrees is its own opposite
+            deltas.append(-k * step)
+    return [(base + d) % 360 for d in deltas]
 
 
 def alpha_mask(img_rgba):
@@ -136,23 +158,29 @@ def edt(free):
     return dist
 
 
-def gap_spot(mask, occupied, inside, rng, slack, tries=60, reach=0.15):
-    """Position for `mask` in (or near) the largest empty gap of the free space, or None.
+def gap_centres(occupied, inside, slack):
+    """Centres (xs, ys) of the largest empty gaps of the free space, or None if nothing is free.
 
-    The gap is found with a distance transform on a 2x downsampled grid; a random pixel among
-    those within `slack` of the maximum is used as the centre, with growing jitter per try.
+    Found with a distance transform on a 2x downsampled grid: every pixel whose distance to the
+    nearest occupied pixel is within `slack` of the maximum counts as a gap centre.
     """
-    free = inside & ~occupied
-    d = edt(free[::2, ::2])
+    d = edt((inside & ~occupied)[::2, ::2])
     m = d.max()
     if m == 0:
         return None
     ys, xs = np.nonzero(d >= slack * m)
+    return xs * 2 + 1, ys * 2 + 1
+
+
+def gap_spot(mask, occupied, centres, rng, tries=60, reach=0.15):
+    """Position for `mask` in (or near) one of the gap `centres` (see gap_centres), or None.
+    A random centre is used per try, with growing jitter."""
+    xs, ys = centres
     grid = occupied.shape[0]
     h, w = mask.shape
     for t in range(tries):
         k = rng.randrange(len(ys))
-        cx, cy = xs[k] * 2 + 1, ys[k] * 2 + 1
+        cx, cy = xs[k], ys[k]
         r = reach * grid * (t / tries) * math.sqrt(rng.random())
         a = rng.uniform(0, 2 * math.pi)
         x0 = round(cx + r * math.cos(a) - w / 2)
@@ -164,11 +192,35 @@ def gap_spot(mask, occupied, inside, rng, slack, tries=60, reach=0.15):
     return None
 
 
+def place_any(angles, raster, occupied, centres, rng, tries):
+    """First (angle, mask, (x0, y0)) over `angles` that fits, or None. `raster(angle)` gives the mask.
+    Every orientation is tried in the biggest gap before any one is placed at random."""
+    masks = {}
+
+    def mask_at(angle):
+        if angle not in masks:
+            masks[angle] = raster(angle)
+        return masks[angle]
+
+    if centres is not None:
+        for angle in angles:
+            spot = gap_spot(mask_at(angle), occupied, centres, rng)
+            if spot:
+                return angle, mask_at(angle), spot
+    for angle in angles:
+        spot = find_spot(mask_at(angle), occupied, rng, tries)
+        if spot:
+            return angle, mask_at(angle), spot
+    return None
+
+
 def pack_card(small_images, ranks, rng, grid, gap_px, base_size, max_rotation, factors=None,
               gap_slack=0.75, do_relax=True, tries=300, grow_step=1.04, grow_cap=1.3):
     """Place the symbols (largest rank first) inside a disc of `grid` px without overlaps.
 
     Passes: gap-filling placement -> relax -> grow -> relax -> grow.
+    Each symbol faces a random direction (a multiple of ROTATION_STEP plus up to +-max_rotation of
+    jitter); the other multiples are tried before the symbol is shrunk to fit.
     small_images: list of RGBA images (downscaled), ranks: matching list of size ranks.
     Returns (placements, coverage, gap): placements are (cx, cy, long_side, angle) in grid pixels,
     coverage is the fraction of the disc covered by artwork, gap the radius of the largest empty
@@ -188,23 +240,22 @@ def pack_card(small_images, ranks, rng, grid, gap_px, base_size, max_rotation, f
         placed = {}
         ok = True
         for n_placed, i in enumerate(order):
-            angle = rng.uniform(-max_rotation, max_rotation)
+            angles = orientations(rng, max_rotation)
+            centres = gap_centres(occupied, inside, gap_slack) if n_placed > 0 else None
             target = min(0.9 * grid, base_size * ladder[ranks[i]] * grid * shrink_all * factors[i])
             size = target
-            spot = None
+            hit = None
             for _shrink in range(9):
-                mask = alpha_mask(scaled_rotated(small_images[i], size, angle))
-                if n_placed > 0:
-                    spot = gap_spot(mask, occupied, inside, rng, gap_slack)
-                if spot is None:
-                    spot = find_spot(mask, occupied, rng, tries)
-                if spot:
+                def raster(angle, size=size):
+                    return alpha_mask(scaled_rotated(small_images[i], size, angle))
+                hit = place_any(angles, raster, occupied, centres, rng, tries)
+                if hit:
                     break
                 size *= 0.95
-            if not spot:
+            if not hit:
                 ok = False
                 break
-            x0, y0 = spot
+            angle, mask, (x0, y0) = hit
             h, w = mask.shape
             placed[i] = dict(cx=x0 + w / 2, cy=y0 + h / 2, size=size, angle=angle, mask=mask,
                              full=paste_mask(mask, x0, y0, grid),

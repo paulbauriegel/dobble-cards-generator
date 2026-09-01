@@ -200,6 +200,7 @@ def cmd_build(args):
         res = render_packed([images[s] for s in card], [ranks[(i, s)] for s in card], args.size, rng,
                             factors=[factors[s] for s in card], **settings)
         res.image.save(cards_dir / f"card_{i + 1:02d}.png")
+        res.image = None    # release the pixels: only coverage, gap and placements are needed below
         results.append(res)
         print(f"card {i + 1:02d} ({res.coverage:4.0%} covered, largest gap {res.largest_gap:.3f}): "
               + ", ".join(names[s] for s in card))
@@ -284,7 +285,7 @@ def build_parser():
     p.add_argument("--seed", type=int, default=42, help="random seed for sizes, rotation and placement")
     p.add_argument("--shuffle-symbols", action="store_true",
                    help="assign images to symbol slots randomly instead of in file order")
-    p.add_argument("--max-rotation", type=float, help="max rotation of a symbol in degrees (theme default)")
+    p.add_argument("--max-rotation", type=float, help="jitter in degrees around a symbol's random 45-degree base orientation (theme default)")
     p.add_argument("--border", type=int, default=1, help="grey outline width in the PNG in px, 0 for none")
     p.add_argument("--base-size", type=float,
                    help="long side of the largest symbol as a fraction of the card diameter (theme default)")
