@@ -13,11 +13,11 @@ dependencies = [
     "reportlab>=4",
 ]
 
-[project.optional-dependencies]
-test = ["pytest>=8"]
-
 [project.scripts]
 dobble = "dobble.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
 
 [tool.setuptools]
 packages = ["dobble"]
