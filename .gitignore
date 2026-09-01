@@ -1,0 +1,19 @@
+# images are not committed (copyright); fetch/prepare them locally
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.html
+
+# build output
+out/
+
+# python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+
+# keep folder placeholders
+!.gitkeep
