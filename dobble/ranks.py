@@ -43,14 +43,3 @@ def assign_size_ranks(cards, rng):
     assert all(sorted(ranks[(i, s)] for s in c) == list(range(k)) for i, c in enumerate(cards))
     assert all(sorted(v) == list(range(k)) for v in per_symbol.values())
     return ranks
-
-
-def random_size_ranks(cards, rng):
-    """Fallback: each card gets ranks 0..k-1 in random order, no balancing across the deck."""
-    ranks = {}
-    for i, c in enumerate(cards):
-        order = list(range(len(c)))
-        rng.shuffle(order)
-        for s, r in zip(c, order):
-            ranks[(i, s)] = r
-    return ranks

@@ -4,17 +4,25 @@ import math
 import numpy as np
 from PIL import Image
 
-# Relative long-side length of the size ranks on a card, largest first. Multiplied by base_size
-# (fraction of the card diameter). The packer shrinks a card uniformly if the art does not fit and
-# grows every symbol afterwards where there is room, so these are starting points, not final sizes.
-SIZE_LADDER = [1.0, 0.85, 0.72, 0.62, 0.54, 0.48, 0.43, 0.38]
+# Relative long-side length of the 8 size ranks of a standard (order 7) deck, largest first.
+# Multiplied by base_size (fraction of the card diameter). The packer shrinks a card uniformly if
+# the art does not fit and grows every symbol afterwards where there is room, so these are
+# starting points, not final sizes.
+_LADDER_8 = [1.0, 0.85, 0.72, 0.62, 0.54, 0.48, 0.43, 0.38]
+SMALLEST_RANK = _LADDER_8[-1]
 
-# Sizes are meant as visible area, not bounding-box length. A symbol's long side is multiplied by
-# sqrt(SHAPE_REF / (aspect * fill)) so wide or thin artwork gets as much ink as a compact one.
-# SHAPE_REF is the median aspect*fill of the Gen 1 artwork set, so a typical symbol keeps its size
-# and only outliers change.
-SHAPE_REF = 0.43
+# A symbol's long side is multiplied by sqrt(ref / (aspect * fill)), clamped to this range, so wide
+# or thin artwork gets about as much visible area as a compact one. See shape_reference().
 SHAPE_FACTOR_RANGE = (0.8, 2.0)
+
+
+def size_ladder(k):
+    """Relative sizes of the k ranks on a card, largest first, from 1.0 down to SMALLEST_RANK."""
+    if k == len(_LADDER_8):
+        return list(_LADDER_8)
+    if k == 1:
+        return [1.0]
+    return [SMALLEST_RANK ** (i / (k - 1)) for i in range(k)]
 
 
 def scaled_rotated(img, long_side, angle):
@@ -29,13 +37,22 @@ def alpha_mask(img_rgba):
     return np.asarray(img_rgba.getchannel("A")) > 128
 
 
-def shape_factor(img_rgba):
-    """Multiplier for the long side so that this artwork shows about the same visible area as a
-    reference shape (see SHAPE_REF)."""
-    fill = alpha_mask(img_rgba).mean()
+def _aspect_fill(img_rgba):
+    """aspect (short/long side) times fill (opaque fraction of the bounding box): a compactness measure."""
     w, h = img_rgba.size
-    aspect = min(w, h) / max(w, h)
-    factor = math.sqrt(SHAPE_REF / max(aspect * fill, 1e-6))
+    return (min(w, h) / max(w, h)) * alpha_mask(img_rgba).mean()
+
+
+def shape_reference(images):
+    """Median compactness of a symbol set. Symbols at the median keep their nominal size, wide or
+    thin ones are enlarged so every symbol shows about the same visible area."""
+    return float(np.median([_aspect_fill(im) for im in images]))
+
+
+def shape_factor(img_rgba, ref):
+    """Multiplier for the long side so that this artwork shows about the same visible area as a
+    symbol of compactness `ref` (see shape_reference)."""
+    factor = math.sqrt(ref / max(_aspect_fill(img_rgba), 1e-6))
     return min(SHAPE_FACTOR_RANGE[1], max(SHAPE_FACTOR_RANGE[0], factor))
 
 
@@ -162,6 +179,7 @@ def pack_card(small_images, ranks, rng, grid, gap_px, base_size, max_rotation, f
     outside = ~inside
     order = sorted(range(len(small_images)), key=lambda i: ranks[i])   # rank 0 = largest first
     factors = factors or [1.0] * len(small_images)
+    ladder = size_ladder(len(small_images))
     shrink_all = 1.0
 
     # ---- placement: the largest symbol goes anywhere it fits, every further one into the biggest gap
@@ -171,7 +189,7 @@ def pack_card(small_images, ranks, rng, grid, gap_px, base_size, max_rotation, f
         ok = True
         for n_placed, i in enumerate(order):
             angle = rng.uniform(-max_rotation, max_rotation)
-            target = min(0.9 * grid, base_size * SIZE_LADDER[ranks[i]] * grid * shrink_all * factors[i])
+            target = min(0.9 * grid, base_size * ladder[ranks[i]] * grid * shrink_all * factors[i])
             size = target
             spot = None
             for _shrink in range(9):
@@ -196,7 +214,7 @@ def pack_card(small_images, ranks, rng, grid, gap_px, base_size, max_rotation, f
             break
         shrink_all *= 0.95
     else:
-        raise RuntimeError("could not pack card even after shrinking; lower --base-size")
+        raise RuntimeError("could not pack card even after shrinking; lower base_size")
 
     # count of footprints per cell, so "everything except symbol i" is one subtraction
     foot_count = sum(p["foot"].astype(np.int16) for p in placed.values())

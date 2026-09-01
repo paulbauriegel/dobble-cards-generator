@@ -1,0 +1,8 @@
+{
+  "name": "pokemon-sprites",
+  "extends": "pokemon",
+  "raw_ext": "png",
+  "transparent": true,
+  "extras_dir": "../pokemon/extras",
+  "fetch": {"script": "../pokemon/fetch.py", "args": ["--variant", "png"]}
+}

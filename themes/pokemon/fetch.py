@@ -1,28 +1,32 @@
 """Download Generation 1 Pokemon images from pokemondb.net.
 
-Usage:
-    python download_gen1.py [--variant sprite|png|artwork|all] [--html national.html]
+Usage (normally run through `dobble fetch pokemon` / `dobble fetch pokemon-sprites`):
+    python fetch.py --out <folder> [--variant artwork|png] [--html national.html]
 
-Variants (each goes into its own folder under images/):
-    sprite   -> images/gen1          HOME sprite, 2x JPG, white background (as shown on the page)
-    png      -> images/gen1_png      HOME sprite, 1x PNG, transparent background
-    artwork  -> images/gen1_artwork  Official large artwork, JPG
-    all      -> every variant above
+Variants:
+    artwork  -> official large artwork, JPG, white background (default; the `pokemon` theme)
+    png      -> HOME sprite, 1x PNG, transparent background (the `pokemon-sprites` theme)
 
-The page HTML is fetched automatically if the --html file does not exist.
+The national Pokedex page is fetched once and cached next to this script.
 """
-import argparse, os, re, sys, time, urllib.request
+import argparse
+import os
+import re
+import sys
+import time
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 PAGE_URL = "https://pokemondb.net/pokedex/national"
-BASE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.abspath(__file__))
 UA = {"User-Agent": "Mozilla/5.0"}
+GEN1_MAX = 151
 
 VARIANTS = {
-    "sprite":  ("gen1",         "https://img.pokemondb.net/sprites/home/normal/2x/{slug}.jpg", "jpg"),
-    "png":     ("gen1_png",     "https://img.pokemondb.net/sprites/home/normal/{slug}.png",    "png"),
-    "artwork": ("gen1_artwork", "https://img.pokemondb.net/artwork/large/{slug}.jpg",         "jpg"),
+    "artwork": ("https://img.pokemondb.net/artwork/large/{slug}.jpg", "jpg"),
+    "png":     ("https://img.pokemondb.net/sprites/home/normal/{slug}.png", "png"),
 }
+
 
 def load_html(path):
     if not os.path.exists(path):
@@ -32,6 +36,7 @@ def load_html(path):
             f.write(r.read())
     return open(path, encoding="utf-8").read()
 
+
 def parse_gen1(html):
     # The slug in the sprite URL is what every variant URL is keyed on.
     pat = re.compile(
@@ -40,9 +45,11 @@ def parse_gen1(html):
     seen, gen1 = set(), []
     for slug, name, num in pat.findall(html):
         n = int(num)
-        if n <= 151 and n not in seen:
-            seen.add(n); gen1.append((n, name, slug))
+        if n <= GEN1_MAX and n not in seen:
+            seen.add(n)
+            gen1.append((n, name, slug))
     return gen1
+
 
 def download(url, path):
     req = urllib.request.Request(url, headers=UA)
@@ -53,13 +60,15 @@ def download(url, path):
                 f.write(r.read())
             return "ok"
         except Exception as ex:
-            err = ex; time.sleep(1 + attempt)
-    if os.path.exists(path): os.remove(path)
+            err = ex
+            time.sleep(1 + attempt)
+    if os.path.exists(path):
+        os.remove(path)
     return f"FAIL {err}"
 
-def run_variant(variant, gen1):
-    folder, url_tpl, ext = VARIANTS[variant]
-    out = os.path.join(BASE, "images", folder)
+
+def run_variant(variant, gen1, out):
+    url_tpl, ext = VARIANTS[variant]
     os.makedirs(out, exist_ok=True)
 
     def fetch(e):
@@ -75,24 +84,25 @@ def run_variant(variant, gen1):
     ok = sum(1 for r in results if r[2] == "ok")
     skip = sum(1 for r in results if r[2] == "skip")
     fails = [r for r in results if r[2].startswith("FAIL")]
-    print(f"[{variant}] -> images/{folder}: ok {ok}, skipped {skip}, failed {len(fails)}")
-    for r in fails: print("   ", r)
+    print(f"[{variant}] -> {out}: ok {ok}, skipped {skip}, failed {len(fails)}")
+    for r in fails:
+        print("   ", r)
     return len(fails)
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--variant", choices=[*VARIANTS, "all"], default="sprite")
-    ap.add_argument("--html", default=os.path.join(BASE, "national.html"))
+    ap.add_argument("--out", required=True, help="folder for the downloaded images")
+    ap.add_argument("--variant", choices=list(VARIANTS), default="artwork")
+    ap.add_argument("--html", default=os.path.join(HERE, "national.html"), help="cache of the Pokedex page")
     args = ap.parse_args()
 
     gen1 = parse_gen1(load_html(args.html))
     print(f"found {len(gen1)} Gen 1 entries")
-    if len(gen1) != 151:
-        sys.exit("expected 151 entries; page layout may have changed")
+    if len(gen1) != GEN1_MAX:
+        sys.exit(f"expected {GEN1_MAX} entries; page layout may have changed")
+    sys.exit(1 if run_variant(args.variant, gen1, args.out) else 0)
 
-    variants = list(VARIANTS) if args.variant == "all" else [args.variant]
-    failed = sum(run_variant(v, gen1) for v in variants)
-    sys.exit(1 if failed else 0)
 
 if __name__ == "__main__":
     main()
