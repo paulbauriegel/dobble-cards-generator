@@ -9,6 +9,7 @@
 !themes/fairytale/raw/*.png
 !themes/fairytale/reference/*.png
 !themes/fairytale/back.jpg
+!assets/social-preview/*.png
 themes/*/raw/manifest.jsonl
 
 # build output
@@ -21,6 +22,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 build/
+.DS_Store
 
 # keep folder placeholders
 !.gitkeep
