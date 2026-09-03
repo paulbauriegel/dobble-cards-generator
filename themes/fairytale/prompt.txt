@@ -1,0 +1,75 @@
+FAIRY-TALE DOBBLE ICON PROMPT V2
+================================
+
+How to use
+----------
+
+Replace the four bracketed fields below. For the closest style consistency,
+attach the approved Cinderella slipper as Image 1 whenever the generator
+supports a reference image.
+
+Local style reference: variants/cinderella-black-outline.png
+
+Concept: [CONCEPT]
+Defining features: [2 OR 3 DISTINCTIVE FEATURES]
+View or pose: [SIMPLE VIEW OR POSE]
+Main palette: [2 OR 3 CONCEPT-APPROPRIATE COLORS]
+
+Copy/paste prompt
+-----------------
+
+Use case: stylized-concept
+Asset type: individual symbol for a family-friendly circular visual-matching
+card game
+
+Input image: If Image 1 is supplied, use it only as the style, rendering,
+outline, composition, and quality reference. Do not reproduce its slipper,
+bow, colors, or Cinderella-specific content in the new symbol.
+
+Primary request: Create one original fairy-tale icon representing [CONCEPT].
+Show exactly one clear main subject with these unmistakable identifying
+features: [2 OR 3 DISTINCTIVE FEATURES]. Present it in this simple view or
+pose: [SIMPLE VIEW OR POSE].
+
+Style and rendering: Match the approved reference's polished flat storybook
+look. Use smooth, rounded, vector-like shapes; a very thick solid pure-black
+outer contour; thinner pure-black interior lines; crisp faceted cel shading;
+large clean white highlights; and only a few broad internal color shapes.
+Keep the finish bright, friendly, playful, and premium. It should look like a
+professionally illustrated family board-game token, not like clip art,
+a photograph, a 3D render, or a detailed book scene.
+
+Color palette: Use [2 OR 3 CONCEPT-APPROPRIATE COLORS], supported by white
+highlights and the pure-black outlines. Use strong contrast between adjacent
+areas. An optional small golden magical sparkle may be placed close to the
+subject only when it helps identify a magical concept; otherwise omit it.
+
+Composition: Square canvas. Center the complete subject and let it occupy
+roughly 75 to 82 percent of the canvas. Use a compact, instantly recognizable
+silhouette with generous, even padding on every side. Keep all important parts
+inside the canvas. The icon must remain clear when printed approximately 25 mm
+wide and when viewed at any rotation on a circular card.
+
+Background: Genuine alpha transparency. Leave every pixel outside the symbol
+transparent. Do not draw or bake a gray-and-white checkerboard, white matte,
+colored backdrop, glow, cast shadow, floor, scenery, frame, circle, or badge.
+
+Constraints: Exactly one main symbol. No unrelated props or duplicated parts.
+No text, letters, numbers, logo, trademark, watermark, or signature. Avoid tiny
+details, thin fragile lines, visual clutter, photorealism, complex textures,
+heavy gradients, lens effects, and dark background elements. Use an original
+public-domain-inspired design and do not imitate a modern film, animation
+studio, game, or copyrighted character adaptation.
+
+Consistency check before final output: Confirm a pure-black outer outline,
+simple black interior lines, crisp faceted color areas, large white highlights,
+one strong readable silhouette, square composition, even padding, and genuine
+transparent background without a baked checkerboard.
+
+Example subject fields
+----------------------
+
+Concept: Frog Prince
+Defining features: green frog, small golden crown, friendly round eyes
+View or pose: seated three-quarter view
+Main palette: emerald green, lime green, warm gold

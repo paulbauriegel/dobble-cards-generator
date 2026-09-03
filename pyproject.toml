@@ -18,6 +18,9 @@ dobble = "dobble.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
+generate = [
+    "openai>=2",
+]
 
 [tool.setuptools]
 packages = ["dobble"]

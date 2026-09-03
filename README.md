@@ -4,8 +4,8 @@ Generate a printable Dobble (Spot It) deck from any set of symbol images. A deck
 projective plane: with 57 symbols you get 57 round cards of 8 symbols each, and any two cards
 share exactly one symbol (see [docs/algorithm.md](docs/algorithm.md)).
 
-Symbol sets are *themes* under `themes/<name>/`. Images are not committed to this repository;
-each theme documents where its images come from.
+Symbol sets are *themes* under `themes/<name>/`. Only the AI-generated **fairytale** sample set
+is committed; the other themes document where their images come from.
 
 ## Setup
 
@@ -21,6 +21,8 @@ uv run pytest
 
 ```bash
 uv run dobble verify 7                 # check the plane construction
+uv run dobble prepare fairytale        # the committed sample theme ...
+uv run dobble build fairytale --pdf    # ... straight to out/fairytale/deck.pdf
 uv run dobble fetch pokemon            # download raw images (theme-specific)
 uv run dobble prepare pokemon          # raw images -> transparent, trimmed symbol PNGs
 uv run dobble build pokemon --pdf      # render the cards and a printable PDF into out/pokemon/
@@ -96,9 +98,16 @@ other count.
 
 ### Included themes
 
-No images are committed to this repository (copyright). Each theme has to be fetched or
-filled locally.
+Only the **fairytale** theme ships with its images; the others have to be fetched or filled
+locally because of copyright.
 
+- **fairytale**: 57 fairy-tale motifs (Grimm, Andersen, Perrault and friends) plus a card back,
+  all generated with OpenAI's gpt-image-2 in September 2026 and picked by hand from three
+  candidates each. They are committed as a sample set, so `uv run dobble prepare fairytale`
+  followed by `uv run dobble build fairytale --pdf` works straight after cloning. The prompts,
+  the style reference image and the generation script live next to them;
+  `dobble fetch fairytale` runs the script to generate candidates for new concepts. See
+  [themes/fairytale/README.md](themes/fairytale/README.md) for the AI notice and the workflow.
 - **pokemon**: 53 Generation 1 Pokemon (official artwork from pokemondb.net, downloaded by
   `dobble fetch pokemon`) plus four extras that have to be placed into `themes/pokemon/extras/`
   by hand: `Pokeball.png`, `PokemonLogo.png`, `TeamRocket.png`, `ash-2.png`. The back image is

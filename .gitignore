@@ -5,6 +5,12 @@
 *.pdf
 *.html
 
+# except the fairytale theme's AI-generated sample set (see themes/fairytale/README.md)
+!themes/fairytale/raw/*.png
+!themes/fairytale/reference/*.png
+!themes/fairytale/back.jpg
+themes/*/raw/manifest.jsonl
+
 # build output
 out/
 
