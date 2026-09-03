@@ -4,6 +4,6 @@
   "transparent": true,
   "fetch": {"script": "generate.py"},
   "back": "back.jpg",
-  "back_zoom": 1.1,
+  "back_zoom": 1.0,
   "render": {"base_size": 0.40, "gap": 0.015, "max_rotation": 40}
 }
