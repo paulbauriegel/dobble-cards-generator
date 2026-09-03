@@ -8,6 +8,14 @@ uv run dobble prepare fairytale
 uv run dobble build fairytale --pdf
 ```
 
+You can build your own deck the same way: put transparent PNGs (or white-background images) into
+`raw/` of a new theme folder, or let `generate.py` draw candidates for your own concept list, and
+run `prepare` and `build`. It does not have to be 57 symbols. A deck is a projective plane of
+prime order n with n^2 + n + 1 symbols and n + 1 symbols per card, so 7 symbols give a 3-per-card
+deck of 7 cards, 13 give 4 per card, 31 give 6 per card, 57 give 8 per card and 133 give 12. A
+13- or 31-symbol deck is a good first target for hand-made or hand-picked images; if you have
+more images than the size you want, list the ones to use in `selection` in `theme.json`.
+
 ## AI-generated images
 
 Every image in this folder (`raw/`, `reference/`, `back.jpg`) was generated with OpenAI's
