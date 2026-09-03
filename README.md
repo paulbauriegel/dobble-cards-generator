@@ -1,8 +1,11 @@
-# dobble-generator
+# Dobble card generator
 
 Generate a printable Dobble (Spot It) deck from any set of symbol images. A deck is a finite
 projective plane: with 57 symbols you get 57 round cards of 8 symbols each, and any two cards
-share exactly one symbol (see [docs/algorithm.md](docs/algorithm.md)).
+share exactly one symbol (see [docs/algorithm.md](docs/algorithm.md)). Smaller decks work the
+same way: 7, 13 or 31 symbols give 3, 4 or 6 symbols per card, and 133 give 12. You can build
+your own deck from any images you have, or generate them with an image model as in the included
+[fairytale](themes/fairytale/README.md) theme.
 
 Symbol sets are *themes* under `themes/<name>/`. Only the AI-generated **fairytale** sample set
 is committed; the other themes document where their images come from.
