@@ -8,7 +8,7 @@ your own deck from any images you have, or generate them with an image model as 
 [fairytale](themes/fairytale/README.md) theme.
 
 Symbol sets are *themes* under `themes/<name>/`. Only the AI-generated **fairytale** sample set
-is committed; the other themes document where their images come from.
+is committed.
 
 ## Setup
 
@@ -37,11 +37,35 @@ uv run dobble circles -d 8 -n 6        # blank circle templates
 `build` renders `out/<theme>/cards/card_NN.png` and `out/<theme>/cards.json` (which symbol sits
 where on every card, plus coverage statistics). `--pdf` or the `pdf` command lay the cards out on
 A4 (or A3, Letter) with a cutting circle around each card; if the theme has a back image, every
-page of fronts is followed by a mirrored page of backs for long-edge duplex printing. Most
-duplex printers land the second side a millimetre or two off the first; if the backs sit
-consistently too high, say by 2 mm, `--back-offset 0 2` shifts the back pages down by that much
-(`RIGHT DOWN` in millimetres, negative for left/up; off by default). `--back-zoom` hides small
-shifts by running the back artwork past the cut line.
+page of fronts is followed by a page of backs (see below).
+
+### Double-sided printing
+
+With a back image, every page of fronts is followed by a page of backs at the same positions,
+mirrored left/right, so a **long-edge duplex** print puts a back behind every card. Print at
+100% ("actual size"), not "fit to page". `--no-mirror-back` keeps the columns in place for
+short-edge duplex or for re-feeding the sheets by hand; `--no-back` prints fronts only.
+
+Most duplex printers land the second side a millimetre or two off the first, usually along the
+feed direction, and the cut circle on the back then no longer matches the front. Two options
+deal with that; both work for `build`, `pdf` and `svg`:
+
+| option | effect | default |
+|---|---|---|
+| `--back-offset RIGHT DOWN` | shifts everything on the back pages (artwork and cut circles) by that many millimetres; negative values move left/up | `0 0`, off |
+| `--back-zoom FACTOR` | enlarges the back artwork past the cut line, so a small shift shows more artwork instead of white paper | theme's `back_zoom`, else 1.0 |
+
+To find the offset, print one sheet double-sided, hold it against the light and measure how far
+the back's cut circle sits from the front's. If the back is 2 mm too high, it has to move down:
+
+```bash
+uv run dobble pdf fairytale --back-offset 0 2
+```
+
+The sign is what you see looking at the *back* of the sheet: positive moves the backs right and
+down, negative left and up. The value is a property of your printer and paper path, so it stays
+the same for every deck; put it into the command you use for the final print. `--back-zoom`
+alone is enough when the shift is under a millimetre and the back is a repeating pattern.
 
 ### Editable pages (SVG)
 
