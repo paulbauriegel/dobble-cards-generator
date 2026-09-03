@@ -1,4 +1,5 @@
 import argparse
+import io
 import json
 
 from PIL import Image, ImageDraw
@@ -41,3 +42,36 @@ def test_build_writes_cards_and_manifest_and_releases_images(tmp_path, monkeypat
         assert len(entry["symbols"]) == 3 == len(card)
         for s in entry["symbols"]:
             assert {"symbol", "rank", "shape_factor", "cx", "cy", "size", "rotation"} <= s.keys()
+
+
+def test_prepare_keeps_alpha_of_transparent_raw_files_and_strips_white_from_the_rest(tmp_path, monkeypatch):
+    theme_dir = tmp_path / "themes" / "mixed"
+    (theme_dir / "raw").mkdir(parents=True)
+    (theme_dir / "theme.json").write_text(json.dumps({"name": "mixed", "raw_ext": "png"}))
+    # 001: white-background artwork, 002: already transparent (alpha channel with holes) -- 7 files for a valid deck
+    for i in range(1, 8):
+        if i % 2:
+            img = Image.new("RGB", (80, 80), (255, 255, 255))
+            ImageDraw.Draw(img).rectangle((20, 20, 59, 59), fill=(200, 30, 30))
+        else:
+            img = Image.new("RGBA", (80, 80), (0, 0, 0, 0))
+            ImageDraw.Draw(img).rectangle((10, 10, 49, 49), fill=(30, 30, 200, 255))
+        img.save(theme_dir / "raw" / f"{i:03d}_x.png")
+    monkeypatch.setattr(cli, "load_theme", lambda name: load_theme(name, tmp_path / "themes"))
+
+    cli.cmd_prepare(argparse.Namespace(theme="mixed", all=False, no_trim=False, no_outline=True, outline=None))
+
+    white = Image.open(theme_dir / "symbols" / "001_x.png")
+    assert white.mode == "RGBA" and white.size == (40, 40) and white.getpixel((0, 0)) == (200, 30, 30, 255)
+    alpha = Image.open(theme_dir / "symbols" / "002_x.png")
+    assert alpha.size == (40, 40) and alpha.getpixel((0, 0)) == (30, 30, 200, 255)
+
+
+def test_has_transparency():
+    assert not cli.has_transparency(Image.new("RGB", (4, 4), (255, 255, 255)))
+    assert not cli.has_transparency(Image.new("RGBA", (4, 4), (0, 0, 0, 255)))
+    assert cli.has_transparency(Image.new("RGBA", (4, 4), (0, 0, 0, 0)))
+    buf = io.BytesIO()
+    Image.new("RGBA", (4, 4), (0, 0, 0, 0)).convert("P").save(buf, "PNG")   # palette PNG with tRNS
+    pal = Image.open(io.BytesIO(buf.getvalue()))
+    assert pal.mode == "P" and cli.has_transparency(pal)

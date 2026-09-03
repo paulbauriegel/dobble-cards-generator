@@ -41,14 +41,22 @@ class PageGrid:
         x, y = self.slot(idx, mirrored)
         return x + self.diameter / 2, y + self.diameter / 2
 
+    def top_left(self, idx, mirrored=False):
+        """Top-left corner of circle `idx` in y-down page coordinates (SVG), still in points."""
+        x, y = self.slot(idx, mirrored)
+        return x, self.page_h - (y + self.diameter)
+
 
 def write_deck_pdf(card_paths, output, diameter_cm, page, margin_cm=1.0, gap_cm=0.5, line_width=0.25,
-                   back=None, mirror_back=True, back_zoom=1.0):
+                   back=None, mirror_back=True, back_zoom=1.0, back_offset=(0.0, 0.0)):
     """Lay the cards out on pages of `page` size. With `back`, every page of fronts is followed by a
     page with the back image at the same positions (mirrored left/right for long-edge duplex
-    printing unless mirror_back is False), so double-sided printing gives every cut card a back."""
+    printing unless mirror_back is False), so double-sided printing gives every cut card a back.
+    `back_offset` shifts everything on the back pages by (right, down) millimetres, to compensate
+    a printer whose second side lands a little off the first."""
     g = PageGrid(page, diameter_cm, margin_cm, gap_cm)
     d, r = g.diameter, g.diameter / 2
+    off_x, off_y = back_offset[0] * mm, -back_offset[1] * mm   # PDF y grows upwards
 
     def draw_back(c, x, y):
         """Back image scaled to cover the disc, clipped to the circle."""
@@ -82,7 +90,8 @@ def write_deck_pdf(card_paths, output, diameter_cm, page, margin_cm=1.0, gap_cm=
         if back:
             c.setLineWidth(line_width)
             for idx in range(len(chunk)):
-                draw_back(c, *g.slot(idx, mirrored=mirror_back))
+                x, y = g.slot(idx, mirrored=mirror_back)
+                draw_back(c, x + off_x, y + off_y)
             c.showPage()
             pages += 1
     c.save()

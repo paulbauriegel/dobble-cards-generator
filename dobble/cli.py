@@ -5,6 +5,7 @@
     dobble prepare <theme>          raw images -> transparent, trimmed PNGs in the theme's symbols folder
     dobble build <theme> [--pdf]    render out/<theme>/cards/card_NN.png + cards.json (+ deck.pdf)
     dobble pdf <theme>              lay out an existing build as out/<theme>/deck.pdf
+    dobble svg <theme>              lay out an existing build as editable out/<theme>/svg/page_NN.svg
     dobble circles                  blank circle templates
 """
 import argparse
@@ -16,13 +17,14 @@ from pathlib import Path
 
 from PIL import Image
 
-from .imaging import to_transparent, trim_alpha
+from .imaging import add_outline, to_transparent, trim_alpha
 from .packing import shape_factor, shape_reference
 from .pdf import write_circles_pdf, write_deck_pdf
 from .plane import deck_size, dobble, order_for, verify
 from .ranks import assign_size_ranks
 from .render import render_packed
-from .theme import ROOT, list_themes, load_theme
+from .svg import write_deck_svg
+from .theme import DEFAULT_OUTLINE, ROOT, list_themes, load_theme
 
 OUT_ROOT = ROOT / "out"
 
@@ -71,6 +73,26 @@ def raw_number(path):
     return int(stem[:3]) if len(stem) > 3 and stem[:3].isdigit() and stem[3] == "_" else None
 
 
+def has_transparency(img):
+    """True if the image carries an alpha channel with at least one non-opaque pixel."""
+    if img.mode == "P" and "transparency" in img.info:
+        img = img.convert("RGBA")
+    if img.mode not in ("RGBA", "LA"):
+        return False
+    return img.getchannel("A").getextrema()[0] < 255
+
+
+def outline_settings(theme, args):
+    """Outline parameters for `prepare`, or None: --no-outline wins, --outline overrides the theme's width."""
+    if getattr(args, "no_outline", False):
+        return None
+    width = getattr(args, "outline", None)
+    if width is None:
+        return dict(theme.outline) if theme.outline else None
+    base = theme.outline or {**DEFAULT_OUTLINE, "color": (0, 0, 0)}
+    return {**base, "width": width}
+
+
 def cmd_prepare(args):
     t = theme_or_exit(args.theme)
     files = sorted(t.raw_dir.glob(f"*.{t.raw_ext}"))
@@ -99,16 +121,23 @@ def cmd_prepare(args):
         print(f"{len(chosen)} raw images + {len(extras)} extras = {count} symbols: deck of order {n}, "
               f"{n + 1} symbols per card")
 
+    outline = outline_settings(t, args)
+    if outline:
+        print("outline: {:.1%} of the long side in #{:02x}{:02x}{:02x}".format(outline["width"], *outline["color"]))
+
     t.symbols_dir.mkdir(parents=True, exist_ok=True)
     wanted = set()
     for src in chosen:
         dst = t.symbols_dir / (src.stem + ".png")
-        if t.transparent:
-            img = Image.open(src).convert("RGBA")
+        img = Image.open(src)
+        if t.transparent or has_transparency(img):
+            img = img.convert("RGBA")
             img = img if args.no_trim else trim_alpha(img)
         else:
-            img = to_transparent(Image.open(src), trim=not args.no_trim,
+            img = to_transparent(img, trim=not args.no_trim,
                                  pockets=t.pockets.get(raw_number(src), ()), **t.background)
+        if outline:
+            img = add_outline(img, **outline)
         img.save(dst, optimize=True)
         wanted.add(dst.name)
         print("wrote", rel(dst))
@@ -212,21 +241,30 @@ def cmd_build(args):
           f"mean largest empty circle {mean_gap:.3f} of the diameter")
     if args.pdf:
         deck_pdf(t, out, args)
+    if getattr(args, "svg", False):
+        deck_svg(t, out, args)
 
 
 # ---------------------------------------------------------------- pdf
+def back_image(theme, args):
+    """Resolved back image path from the flags and the theme, or None. Exits if it is missing."""
+    back = None if args.no_back else (Path(args.back).resolve() if args.back else theme.back)
+    if back and not back.exists():
+        sys.exit(f"back image not found: {rel(back)}")
+    return back
+
+
 def deck_pdf(theme, out, args):
     paths = sorted((out / "cards").glob("card_*.png"))
     if not paths:
         sys.exit(f"no card PNGs in {rel(out / 'cards')}; run `dobble build {theme.name}` first")
-    back = None if args.no_back else (Path(args.back).resolve() if args.back else theme.back)
-    if back and not back.exists():
-        sys.exit(f"back image not found: {rel(back)}")
+    back = back_image(theme, args)
     zoom = theme.back_zoom if args.back_zoom is None else args.back_zoom
     output = Path(args.output).resolve() if getattr(args, "output", None) else out / "deck.pdf"
     pages = write_deck_pdf([str(p) for p in paths], str(output), args.diameter, args.page,
                            line_width=args.line_width, back=str(back) if back else None,
-                           mirror_back=not args.no_mirror_back, back_zoom=zoom)
+                           mirror_back=not args.no_mirror_back, back_zoom=zoom,
+                           back_offset=tuple(args.back_offset))
     backs = f" with back pages ({rel(back)})" if back else ""
     print(f"wrote {rel(output)} ({pages} pages{backs}, {len(paths)} cards of {args.diameter} cm)")
 
@@ -234,6 +272,34 @@ def deck_pdf(theme, out, args):
 def cmd_pdf(args):
     t = theme_or_exit(args.theme)
     deck_pdf(t, out_dir(t, args.out), args)
+
+
+# ---------------------------------------------------------------- svg
+def deck_svg(theme, out, args):
+    """Editable pages from the manifest: every symbol its own <image>, cut lines on their own layer."""
+    manifest_path = out / "cards.json"
+    if not manifest_path.exists():
+        sys.exit(f"no {rel(manifest_path)}; run `dobble build {theme.name}` first")
+    with open(manifest_path, encoding="utf-8") as f:
+        manifest = json.load(f)
+    back = back_image(theme, args)
+    zoom = theme.back_zoom if args.back_zoom is None else args.back_zoom
+    svg_dir = Path(args.output).resolve() if getattr(args, "output", None) else out / "svg"
+    written = write_deck_svg(manifest, theme.symbols_dir, svg_dir, args.diameter, args.page,
+                             line_width=args.line_width, back=back, mirror_back=not args.no_mirror_back,
+                             back_zoom=zoom, embed=args.embed, back_offset=tuple(args.back_offset))
+    backs = " with back pages" if back else ""
+    print(f"wrote {len(written)} SVG pages{backs} to {rel(svg_dir)} ({manifest['cards']} cards of "
+          f"{args.diameter} cm, {written[0].name} .. {written[-1].name})")
+    if args.embed:
+        print("symbol images are embedded; the files are self-contained")
+    else:
+        print(f"symbol images are linked relative to {rel(theme.symbols_dir)}; use --embed for self-contained files")
+
+
+def cmd_svg(args):
+    t = theme_or_exit(args.theme)
+    deck_svg(t, out_dir(t, args.out), args)
 
 
 # ---------------------------------------------------------------- circles
@@ -263,6 +329,9 @@ def build_parser():
     pdf_opts.add_argument("--back-zoom", type=float, help="enlarge the back image so its edge lies outside the cut line")
     pdf_opts.add_argument("--no-mirror-back", action="store_true",
                           help="do not mirror the back pages left/right (short-edge duplex or manual re-feeding)")
+    pdf_opts.add_argument("--back-offset", type=float, nargs=2, default=(0.0, 0.0), metavar=("RIGHT", "DOWN"),
+                          help="shift the back pages by RIGHT and DOWN millimetres (negative for left/up) to "
+                               "compensate a printer whose second side lands off the first; default 0 0")
 
     p = sub.add_parser("verify", help="check the plane construction")
     p.add_argument("order", type=int, nargs="?", default=7, help="prime order n; deck has n^2+n+1 cards")
@@ -277,6 +346,10 @@ def build_parser():
     p.add_argument("theme", help=f"available: {themes}")
     p.add_argument("--all", action="store_true", help="convert every raw image, ignoring the theme's selection")
     p.add_argument("--no-trim", action="store_true", help="keep the original canvas instead of cropping to content")
+    p.add_argument("--outline", type=float, metavar="WIDTH",
+                   help="stroke the silhouette of every raw symbol (not the extras) with a border this fraction "
+                        "of its long side, e.g. 0.025 for a cartoon-style black border (theme default)")
+    p.add_argument("--no-outline", action="store_true", help="skip the theme's outline")
     p.set_defaults(func=cmd_prepare)
 
     p = sub.add_parser("build", parents=[pdf_opts], help="render the cards (and optionally the PDF)")
@@ -296,12 +369,22 @@ def build_parser():
                    help="a new symbol goes into a gap at least this fraction as deep as the biggest one")
     p.add_argument("--no-relax", action="store_true", help="skip the relaxation passes that even out the whitespace")
     p.add_argument("--pdf", action="store_true", help="also write out/<theme>/deck.pdf")
+    p.add_argument("--svg", action="store_true", help="also write editable out/<theme>/svg/page_NN.svg")
+    p.add_argument("--embed", action="store_true", help="with --svg: embed the symbol images instead of linking them")
     p.set_defaults(func=cmd_build)
 
     p = sub.add_parser("pdf", parents=[pdf_opts], help="lay out an existing build as a printable PDF")
     theme_arg(p)
     p.add_argument("-o", "--output", help="PDF path (default out/<theme>/deck.pdf)")
     p.set_defaults(func=cmd_pdf)
+
+    p = sub.add_parser("svg", parents=[pdf_opts],
+                       help="lay out an existing build as editable SVG pages (Inkscape etc.)")
+    theme_arg(p)
+    p.add_argument("-o", "--output", help="folder for the page SVGs (default out/<theme>/svg)")
+    p.add_argument("--embed", action="store_true",
+                   help="embed the symbol images (self-contained but large) instead of linking the PNGs")
+    p.set_defaults(func=cmd_svg)
 
     p = sub.add_parser("circles", help="blank circle templates")
     p.add_argument("-o", "--output", default="circles.pdf")

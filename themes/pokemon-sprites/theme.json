@@ -4,5 +4,6 @@
   "raw_ext": "png",
   "transparent": true,
   "extras_dir": "../pokemon/extras",
+  "outline": {"width": 0.025, "color": "#000000"},
   "fetch": {"script": "../pokemon/fetch.py", "args": ["--variant", "png"]}
 }

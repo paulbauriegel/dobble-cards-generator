@@ -61,3 +61,53 @@ def to_transparent(img, trim=True, pockets=(), white_level=WHITE_LEVEL, opaque_l
     out = np.dstack([out_rgb, alpha * 255.0]).round().astype(np.uint8)
     result = Image.fromarray(out, "RGBA")
     return trim_alpha(result) if trim else result
+
+
+def _disc_offsets(radius):
+    r = int(radius)
+    return [(dx, dy) for dy in range(-r, r + 1) for dx in range(-r, r + 1) if dx * dx + dy * dy <= r * r]
+
+
+def dilate_alpha(alpha, radius):
+    """Grey dilation of a float HxW alpha array with a disc of the given pixel radius.
+
+    Padding by `radius` is the caller's job. Taking the max of the shifted array keeps the anti-aliased
+    source edge, so the outline stays smooth instead of stair-stepped."""
+    out = alpha.copy()
+    h, w = alpha.shape
+    for dx, dy in _disc_offsets(radius):
+        if dx == 0 and dy == 0:
+            continue
+        src = alpha[max(0, -dy):h - max(0, dy), max(0, -dx):w - max(0, dx)]
+        dst = out[max(0, dy):h - max(0, -dy), max(0, dx):w - max(0, -dx)]
+        np.maximum(dst, src, out=dst)
+    return out
+
+
+def add_outline(img, width=0.025, color=(0, 0, 0), min_size=600):
+    """Draw a solid stroke around the silhouette of an RGBA image (cartoon-style black border).
+
+    width      stroke width as a fraction of the image's long side
+    color      RGB of the stroke
+    min_size   upscale the image (Lanczos) so its long side is at least this many pixels before
+               stroking, so that small sprites get a smooth, round outline rather than a blocky one
+    The canvas grows by the stroke width on every side; nothing of the original is covered."""
+    img = img.convert("RGBA")
+    long_side = max(img.size)
+    if long_side < min_size:
+        scale = min_size / long_side
+        img = img.resize((round(img.width * scale), round(img.height * scale)), Image.LANCZOS)
+        long_side = max(img.size)
+    r = max(1, round(width * long_side))
+
+    padded = Image.new("RGBA", (img.width + 2 * r, img.height + 2 * r), (0, 0, 0, 0))
+    padded.paste(img, (r, r))
+    alpha = np.asarray(padded.getchannel("A")).astype(np.float32) / 255.0
+    stroke_alpha = dilate_alpha(alpha, r)
+
+    stroke = np.empty((*alpha.shape, 4), dtype=np.uint8)
+    stroke[..., :3] = color
+    stroke[..., 3] = (stroke_alpha * 255.0).round().astype(np.uint8)
+    out = Image.fromarray(stroke, "RGBA")
+    out.alpha_composite(padded)
+    return out

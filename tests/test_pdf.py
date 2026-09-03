@@ -40,3 +40,23 @@ def test_pdfs_are_written(tmp_path):
     assert pages == 4 and out.stat().st_size > 0
     pages, per_page = write_circles_pdf(str(tmp_path / "c.pdf"), 8.0, 10)
     assert (pages, per_page) == (2, 6)
+
+
+def test_back_offset_shifts_only_the_back_pages(tmp_path, monkeypatch):
+    from PIL import Image
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen.canvas import Canvas
+    card = tmp_path / "card.png"
+    Image.new("RGBA", (50, 50), (255, 0, 0, 255)).save(card)
+    back = tmp_path / "back.png"
+    Image.new("RGB", (60, 60), (0, 0, 255)).save(back)
+    draws = []
+    monkeypatch.setattr(Canvas, "drawImage", lambda self, path, x, y, w, h, **kw: draws.append((path, x, y)))
+
+    write_deck_pdf([str(card)] * 2, str(tmp_path / "deck.pdf"), 8.5, "a4", back=str(back))
+    write_deck_pdf([str(card)] * 2, str(tmp_path / "deck2.pdf"), 8.5, "a4", back=str(back), back_offset=(1.5, -2.0))
+    fronts = [d for d in draws if d[0] == str(card)]
+    backs = [d for d in draws if d[0] == str(back)]
+    assert fronts[:2] == pytest.approx(fronts[2:])                      # fronts never move
+    assert backs[2][1] == pytest.approx(backs[0][1] + 1.5 * mm)        # right
+    assert backs[2][2] == pytest.approx(backs[0][2] + 2.0 * mm)        # negative DOWN = up = +y in PDF space

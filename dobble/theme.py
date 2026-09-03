@@ -16,6 +16,8 @@ theme.json keys (all optional except name):
   fetch         {"script": "fetch.py", "args": [...]} run by `dobble fetch` with --out <raw_dir>
   render        default build settings: base_size, gap, max_rotation (jitter in degrees on top
                 of each symbol's random 45-degree base orientation)
+  outline       {"width": 0.025, "color": "#000000", "min_size": 600}: `prepare` strokes the
+                silhouette of every raw symbol (not the extras) with a solid border; absent = none
 
 Relative paths resolve against the folder of the theme.json that defines them, so an inherited
 `back` still points into the base theme's folder.
@@ -29,6 +31,7 @@ THEMES_ROOT = ROOT / "themes"
 
 DEFAULT_BACKGROUND = {"white_level": 245, "opaque_level": 200}
 DEFAULT_RENDER = {"base_size": 0.40, "gap": 0.015, "max_rotation": 40}
+DEFAULT_OUTLINE = {"width": 0.025, "color": "#000000", "min_size": 600}
 
 
 @dataclass
@@ -48,6 +51,7 @@ class Theme:
     back_zoom: float = 1.0
     fetch: dict | None = None                           # {"script": Path, "args": [...]}
     render: dict = field(default_factory=lambda: dict(DEFAULT_RENDER))
+    outline: dict | None = None                         # {"width", "color" as (r, g, b), "min_size"}
 
     @property
     def symbol_count(self):
@@ -57,6 +61,19 @@ class Theme:
         else:
             n = len(list(self.raw_dir.glob(f"*.{self.raw_ext}")))
         return n + len(self.extras)
+
+
+def parse_color(c):
+    """'#rgb', '#rrggbb' or an [r, g, b] list -> (r, g, b)."""
+    if isinstance(c, str):
+        h = c.lstrip("#")
+        if len(h) == 3:
+            h = "".join(ch * 2 for ch in h)
+        if len(h) != 6:
+            raise ValueError(f"bad colour {c!r}: expected #rrggbb")
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    r, g, b = c
+    return (int(r), int(g), int(b))
 
 
 def _read(name, root):
@@ -100,6 +117,13 @@ def load_theme(name, root=THEMES_ROOT):
             return (d / v).resolve() if v is not None else None
         return (own / default).resolve() if default is not None else None
 
+    outline = value("outline")
+    if outline is not None and outline is not False:
+        outline = {**DEFAULT_OUTLINE, **(outline if isinstance(outline, dict) else {})}
+        outline["color"] = parse_color(outline["color"])
+    else:
+        outline = None
+
     fetch = value("fetch")
     if fetch:
         d = merged["fetch"][1]
@@ -121,6 +145,7 @@ def load_theme(name, root=THEMES_ROOT):
         back_zoom=float(value("back_zoom", 1.0)),
         fetch=fetch,
         render={**DEFAULT_RENDER, **value("render", {})},
+        outline=outline,
     )
 
 

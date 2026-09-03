@@ -1,6 +1,16 @@
 {
   "name": "dinos",
   "raw_ext": "png",
-  "transparent": true,
-  "back": "back.png"
+  "fetch": {"script": "fetch.py"},
+  "selection": [
+    26, 25, 20, 27, 18,
+    4, 16, 3, 6, 1,
+    11, 24, 14
+  ],
+  "pockets": {
+    "6": [[2132, 1608]],
+    "20": [[2480, 1404], [2152, 1412]],
+    "27": [[624, 844]]
+  },
+  "render": {"base_size": 0.40, "gap": 0.015, "max_rotation": 40}
 }
