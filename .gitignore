@@ -10,6 +10,7 @@
 !themes/fairytale/reference/*.png
 !themes/fairytale/back.jpg
 !assets/social-preview/*.png
+!assets/social-preview/photo-variants/*.png
 themes/*/raw/manifest.jsonl
 
 # build output
