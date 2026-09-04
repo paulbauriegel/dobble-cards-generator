@@ -36,9 +36,11 @@
     <text id="title-line-one" class="serif" x="86" y="279" fill="#fff9ec" stroke="#07152b" stroke-opacity=".4" stroke-width="2" paint-order="stroke fill" font-size="70">Dobble Card</text>
     <text id="title-line-two" class="serif" x="86" y="355" fill="#8fd3ff" stroke="#07152b" stroke-opacity=".4" stroke-width="2" paint-order="stroke fill" font-size="70">Generator</text>
     <text id="subtitle" x="88" y="400" fill="#e4ecf8" font-size="25"><tspan x="88">Turn your own images into balanced,</tspan><tspan x="88" dy="39">printable matching cards.</tspan></text>
-    <g id="ai-artwork-icon" class="badge-icon" transform="translate(89 488)" aria-label="Magic wand">
-      <path d="M3 16 15 4M11.5 2.5l1-2 1 2 2 1-2 1-1 2-1-2-2-1zM2.5 6l.7-1.5L4 6l1.5.7L4 7.5 3.2 9 2.5 7.5 1 6.7z"/>
-      <path d="m2.5 13.5 3 3"/>
+    <g id="ai-artwork-icon" class="badge-icon" transform="translate(87 487)" aria-label="Magic wand">
+      <path d="m2 16 2 2L15.5 6.5l-2-2z" fill="#f4c86a" fill-opacity=".16"/>
+      <path d="m5.4 14.6 2 2"/>
+      <path d="m16 0 1.2 3.2L20 4.5l-2.8 1.2L16 9l-1.2-3.3L12 4.5l2.8-1.3z"/>
+      <path d="m5 2 .7 1.8 1.8.7-1.8.7L5 7l-.7-1.8-1.8-.7 1.8-.7z"/>
     </g>
     <g id="automatic-layouts-icon" class="badge-icon" transform="translate(261 489)" aria-label="Automatic layout grid">
       <rect x="0" y="0" width="6" height="6" rx="1"/><rect x="10" y="0" width="6" height="6" rx="1"/>
