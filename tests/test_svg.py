@@ -105,3 +105,25 @@ def test_back_offset_shifts_backs_and_their_cut_lines(tmp_path, deck):
     front_cut = ET.parse(written[0]).getroot().find(f"{SVG}g[@id='cut-lines']").find(f"{SVG}circle")
     x0, y0 = (v * PT_TO_MM for v in PageGrid("a4", 8.5).top_left(0))
     assert (float(front_cut.get("cx")), float(front_cut.get("cy"))) == pytest.approx((x0 + 42.5, y0 + 42.5), abs=1e-3)
+
+
+def test_back_ring_circles_sit_under_the_backs(tmp_path, deck):
+    manifest, symbols, back = deck
+    written = write_deck_svg(manifest, symbols, tmp_path / "plain", 8.5, "a4", back=back)
+    assert ET.parse(written[1]).getroot().find(f"{SVG}g[@id='backs']").findall(f"{SVG}circle") == []
+
+    written = write_deck_svg(manifest, symbols, tmp_path / "ring", 8.5, "a4", back=back,
+                             back_ring=(0, 20, 73), back_ring_mm=2.0, back_offset=(1.5, 0.0))
+    back_page = ET.parse(written[1]).getroot()
+    backs = back_page.find(f"{SVG}g[@id='backs']")
+    rings, uses = backs.findall(f"{SVG}circle"), backs.findall(f"{SVG}use")
+    # the ring replaces the cut line on the backs; the fronts keep theirs
+    assert back_page.find(f"{SVG}g[@id='cut-lines']").findall(f"{SVG}circle") == []
+    assert len(ET.parse(written[0]).getroot().find(f"{SVG}g[@id='cut-lines']").findall(f"{SVG}circle")) == 6
+    assert len(rings) == len(uses) == 6
+    for ring, use in zip(rings, uses):
+        assert ring.get("fill") == "#001449" and float(ring.get("r")) == pytest.approx(42.5 + 2.0)
+        m = re.fullmatch(r"translate\(([\d.-]+) ([\d.-]+)\)", use.get("transform"))
+        assert (float(ring.get("cx")), float(ring.get("cy"))) == pytest.approx((float(m[1]), float(m[2])), abs=1e-3)
+        # the ring is drawn before the artwork so the artwork covers it inside the cut line
+        assert list(backs).index(ring) < list(backs).index(use)

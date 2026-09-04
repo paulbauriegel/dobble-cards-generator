@@ -17,7 +17,7 @@ def test_defaults(tmp_path):
     t = load_theme("plain", tmp_path)
     assert (t.raw_dir, t.extras_dir, t.symbols_dir) == (d / "raw", d / "extras", d / "symbols")
     assert t.raw_ext == "jpg" and t.transparent is False and t.selection is None
-    assert t.back is None and t.fetch is None
+    assert t.back is None and t.fetch is None and t.back_ring is None
     assert t.background == {"white_level": 245, "opaque_level": 200}
     assert t.render["base_size"] == 0.40
 
@@ -58,3 +58,12 @@ def test_circular_extends(tmp_path):
     write_theme(tmp_path, "b", {"name": "b", "extends": "a"})
     with pytest.raises(ValueError, match="circular"):
         load_theme("a", tmp_path)
+
+
+def test_back_ring_string_and_object_forms(tmp_path):
+    write_theme(tmp_path, "s", {"name": "s", "back_ring": "#001449"})
+    assert load_theme("s", tmp_path).back_ring == {"color": (0, 20, 73), "width": 2.0}
+    write_theme(tmp_path, "o", {"name": "o", "back_ring": {"color": [255, 0, 0], "width": 3}})
+    assert load_theme("o", tmp_path).back_ring == {"color": (255, 0, 0), "width": 3.0}
+    write_theme(tmp_path, "off", {"name": "off", "extends": "s", "back_ring": False})
+    assert load_theme("off", tmp_path).back_ring is None

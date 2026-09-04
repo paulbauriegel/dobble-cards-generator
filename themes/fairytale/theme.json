@@ -3,7 +3,8 @@
   "raw_ext": "png",
   "transparent": true,
   "fetch": {"script": "generate.py"},
-  "back": "back.jpg",
+  "back": "back.png",
   "back_zoom": 1.0,
+  "back_ring": {"color": "#001449", "width": 3.0},
   "render": {"base_size": 0.40, "gap": 0.015, "max_rotation": 40}
 }

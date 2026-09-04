@@ -8,7 +8,7 @@
 # except the fairytale theme's AI-generated sample set (see themes/fairytale/README.md)
 !themes/fairytale/raw/*.png
 !themes/fairytale/reference/*.png
-!themes/fairytale/back.jpg
+!themes/fairytale/back.png
 !assets/social-preview/*.png
 !assets/social-preview/photo-variants/*.png
 themes/*/raw/manifest.jsonl

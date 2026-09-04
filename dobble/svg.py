@@ -12,6 +12,7 @@ from pathlib import Path
 from PIL import Image
 
 from .pdf import PageGrid
+from .theme import hex_color
 
 PT_TO_MM = 25.4 / 72
 SVG_NS = "http://www.w3.org/2000/svg"
@@ -71,10 +72,12 @@ def _write(root, path):
 
 def write_deck_svg(manifest, symbols_dir, out_dir, diameter_cm, page, margin_cm=1.0, gap_cm=0.5,
                    line_width=0.25, back=None, mirror_back=True, back_zoom=1.0, embed=False,
-                   back_offset=(0.0, 0.0)):
+                   back_offset=(0.0, 0.0), back_ring=None, back_ring_mm=2.0):
     """Write page_NN.svg (and page_NN_back.svg with `back`) into `out_dir` from a cards.json
     `manifest` and the PNGs in `symbols_dir`. `back_offset` shifts the back pages by (right, down)
-    millimetres for printers whose second side lands off the first. Returns the written paths."""
+    millimetres for printers whose second side lands off the first; `back_ring`, an (r, g, b)
+    colour, fills a ring `back_ring_mm` wide around every back's cut circle in place of the cut line.
+    Returns the written paths."""
     g = PageGrid(page, diameter_cm, margin_cm, gap_cm)
     d = g.diameter * PT_TO_MM
     r = d / 2
@@ -147,11 +150,15 @@ def write_deck_svg(manifest, symbols_dir, out_dir, diameter_cm, page, margin_cm=
         for idx in range(count):
             x0, y0 = (v * PT_TO_MM for v in g.top_left(idx, mirrored=mirror_back))
             cx, cy = x0 + r + back_offset[0], y0 + r + back_offset[1]
+            if back_ring:
+                ET.SubElement(backs, "circle", id=f"back-ring-{idx}", cx=_f(cx), cy=_f(cy),
+                              r=_f(r + back_ring_mm), fill=hex_color(back_ring))
             use = ET.SubElement(backs, "use", id=f"back-{idx}", transform=f"translate({_f(cx)} {_f(cy)})")
             use.set("href", "#back-image")
             use.set(f"{{{XLINK_NS}}}href", "#back-image")
             use.set("clip-path", "url(#disc)")
-            cut_circle(cuts, cx, cy)
+            if not back_ring:            # the ring's edge is the cutting guide
+                cut_circle(cuts, cx, cy)
         path = out_dir / f"page_{pageno:02d}_back.svg"
         _write(root, path)
         return path

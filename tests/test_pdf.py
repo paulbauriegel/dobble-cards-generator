@@ -60,3 +60,34 @@ def test_back_offset_shifts_only_the_back_pages(tmp_path, monkeypatch):
     assert fronts[:2] == pytest.approx(fronts[2:])                      # fronts never move
     assert backs[2][1] == pytest.approx(backs[0][1] + 1.5 * mm)        # right
     assert backs[2][2] == pytest.approx(backs[0][2] + 2.0 * mm)        # negative DOWN = up = +y in PDF space
+
+
+def test_back_ring_is_filled_under_every_back(tmp_path, monkeypatch):
+    from PIL import Image
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen.canvas import Canvas
+    card = tmp_path / "card.png"
+    Image.new("RGBA", (50, 50), (255, 0, 0, 255)).save(card)
+    back = tmp_path / "back.png"
+    Image.new("RGB", (60, 60), (0, 0, 255)).save(back)
+    circles, fills = [], []
+    real_circle = Canvas.circle
+    monkeypatch.setattr(Canvas, "circle", lambda self, cx, cy, r, stroke=1, fill=0:
+                        circles.append((cx, cy, r, fill)) or real_circle(self, cx, cy, r, stroke, fill))
+    monkeypatch.setattr(Canvas, "setFillColorRGB", lambda self, r, g, b, alpha=None: fills.append((r, g, b)))
+
+    write_deck_pdf([str(card)] * 2, str(tmp_path / "plain.pdf"), 8.5, "a4", back=str(back))
+    assert all(f == 0 for _, _, _, f in circles) and fills == []
+
+    circles.clear()
+    write_deck_pdf([str(card)] * 2, str(tmp_path / "ring.pdf"), 8.5, "a4", back=str(back),
+                   back_ring=(0, 20, 73), back_ring_mm=2.0)
+    g = PageGrid("a4", 8.5)
+    r = g.diameter / 2
+    filled = [c for c in circles if c[3]]
+    assert len(filled) == 2 and fills == [pytest.approx((0, 20 / 255, 73 / 255))] * 2
+    for (cx, cy, rr, _), idx in zip(filled, range(2)):
+        assert rr == pytest.approx(r + 2 * mm)
+        assert (cx, cy) == pytest.approx(g.centre(idx, mirrored=True))
+    # the ring replaces the cut circle on the backs; the fronts keep theirs
+    assert sum(1 for c in circles if not c[3]) == 2

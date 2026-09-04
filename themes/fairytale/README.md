@@ -36,7 +36,7 @@ home-printed game.
 | file | content |
 |---|---|
 | `raw/NNN_name.png` | the 57 symbols, transparent PNGs, `prepare` only trims them |
-| `back.jpg` | card back; `back_zoom` 1.0 keeps the complete artwork inside the cut line |
+| `back.png` | card back; `back_zoom` 1.0 keeps the complete artwork inside the cut line, and `back_ring` gives `--back-ring` its 3 mm navy (`#001449`) ring outside it so a slightly misaligned cut shows blue instead of white |
 | `symbols.txt` | numbered concept list read by `generate.py` |
 | `prompt.txt` | prompt template; the block after "Copy/paste prompt" is sent, with the bracketed fields filled per concept |
 | `reference/` | style reference image and the prompt that produced it |

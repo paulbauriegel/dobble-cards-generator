@@ -48,19 +48,25 @@ class PageGrid:
 
 
 def write_deck_pdf(card_paths, output, diameter_cm, page, margin_cm=1.0, gap_cm=0.5, line_width=0.25,
-                   back=None, mirror_back=True, back_zoom=1.0, back_offset=(0.0, 0.0)):
+                   back=None, mirror_back=True, back_zoom=1.0, back_offset=(0.0, 0.0),
+                   back_ring=None, back_ring_mm=2.0):
     """Lay the cards out on pages of `page` size. With `back`, every page of fronts is followed by a
     page with the back image at the same positions (mirrored left/right for long-edge duplex
     printing unless mirror_back is False), so double-sided printing gives every cut card a back.
     `back_offset` shifts everything on the back pages by (right, down) millimetres, to compensate
-    a printer whose second side lands a little off the first."""
+    a printer whose second side lands a little off the first. `back_ring`, an (r, g, b) colour,
+    fills a ring `back_ring_mm` wide around every back's cut circle in place of the stroked circle,
+    so a cut that lands a little off shows that colour instead of white paper."""
     g = PageGrid(page, diameter_cm, margin_cm, gap_cm)
     d, r = g.diameter, g.diameter / 2
     off_x, off_y = back_offset[0] * mm, -back_offset[1] * mm   # PDF y grows upwards
 
     def draw_back(c, x, y):
-        """Back image scaled to cover the disc, clipped to the circle."""
+        """Back image scaled to cover the disc, clipped to the circle, over the optional ring."""
         c.saveState()
+        if back_ring:
+            c.setFillColorRGB(*(v / 255 for v in back_ring))
+            c.circle(x + r, y + r, r + back_ring_mm * mm, stroke=0, fill=1)
         clip = c.beginPath()
         clip.circle(x + r, y + r, r)
         c.clipPath(clip, stroke=0, fill=0)
@@ -69,7 +75,8 @@ def write_deck_pdf(card_paths, output, diameter_cm, page, margin_cm=1.0, gap_cm=
         w, h = bw * scale, bh * scale
         c.drawImage(back, x + (d - w) / 2, y + (d - h) / 2, w, h, mask="auto")
         c.restoreState()
-        c.circle(x + r, y + r, r, stroke=1, fill=0)
+        if not back_ring:                # the ring's edge is the cutting guide
+            c.circle(x + r, y + r, r, stroke=1, fill=0)
 
     if back:
         with Image.open(back) as im:

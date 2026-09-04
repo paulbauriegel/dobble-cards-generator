@@ -24,9 +24,10 @@ from .plane import deck_size, dobble, order_for, verify
 from .ranks import assign_size_ranks
 from .render import render_packed
 from .svg import write_deck_svg
-from .theme import DEFAULT_OUTLINE, ROOT, list_themes, load_theme
+from .theme import DEFAULT_BACK_RING, DEFAULT_OUTLINE, ROOT, hex_color, list_themes, load_theme, parse_color
 
 OUT_ROOT = ROOT / "out"
+THEME_COLOR = object()        # `--back-ring` without a value: the theme's colour
 
 
 def rel(path):
@@ -254,18 +255,44 @@ def back_image(theme, args):
     return back
 
 
+def back_ring(theme, args):
+    """(colour, width_mm) of the ring around the backs' cut circles; colour is None without
+    --back-ring. A bare --back-ring takes the theme's colour, --back-ring COLOR overrides it."""
+    ring = theme.back_ring or {}
+    width = ring.get("width", DEFAULT_BACK_RING["width"]) if args.back_ring_width is None else args.back_ring_width
+    if args.back_ring is None:
+        return None, width
+    if args.back_ring is THEME_COLOR:
+        if "color" not in ring:
+            sys.exit(f"theme '{theme.name}' defines no back_ring colour; pass --back-ring COLOR")
+        return ring["color"], width
+    try:
+        return parse_color(args.back_ring), width
+    except ValueError as e:
+        sys.exit(f"--back-ring: {e}")
+
+
+def back_summary(back, ring, width):
+    """'(back.jpg, #001449 ring 2 mm)' for the wrote-... messages."""
+    parts = [rel(back)]
+    if ring:
+        parts.append(f"{hex_color(ring)} ring {width:g} mm")
+    return f" with back pages ({', '.join(parts)})"
+
+
 def deck_pdf(theme, out, args):
     paths = sorted((out / "cards").glob("card_*.png"))
     if not paths:
         sys.exit(f"no card PNGs in {rel(out / 'cards')}; run `dobble build {theme.name}` first")
     back = back_image(theme, args)
     zoom = theme.back_zoom if args.back_zoom is None else args.back_zoom
+    ring, ring_mm = back_ring(theme, args)
     output = Path(args.output).resolve() if getattr(args, "output", None) else out / "deck.pdf"
     pages = write_deck_pdf([str(p) for p in paths], str(output), args.diameter, args.page,
                            line_width=args.line_width, back=str(back) if back else None,
                            mirror_back=not args.no_mirror_back, back_zoom=zoom,
-                           back_offset=tuple(args.back_offset))
-    backs = f" with back pages ({rel(back)})" if back else ""
+                           back_offset=tuple(args.back_offset), back_ring=ring, back_ring_mm=ring_mm)
+    backs = back_summary(back, ring, ring_mm) if back else ""
     print(f"wrote {rel(output)} ({pages} pages{backs}, {len(paths)} cards of {args.diameter} cm)")
 
 
@@ -284,11 +311,13 @@ def deck_svg(theme, out, args):
         manifest = json.load(f)
     back = back_image(theme, args)
     zoom = theme.back_zoom if args.back_zoom is None else args.back_zoom
+    ring, ring_mm = back_ring(theme, args)
     svg_dir = Path(args.output).resolve() if getattr(args, "output", None) else out / "svg"
     written = write_deck_svg(manifest, theme.symbols_dir, svg_dir, args.diameter, args.page,
                              line_width=args.line_width, back=back, mirror_back=not args.no_mirror_back,
-                             back_zoom=zoom, embed=args.embed, back_offset=tuple(args.back_offset))
-    backs = " with back pages" if back else ""
+                             back_zoom=zoom, embed=args.embed, back_offset=tuple(args.back_offset),
+                             back_ring=ring, back_ring_mm=ring_mm)
+    backs = back_summary(back, ring, ring_mm) if back else ""
     print(f"wrote {len(written)} SVG pages{backs} to {rel(svg_dir)} ({manifest['cards']} cards of "
           f"{args.diameter} cm, {written[0].name} .. {written[-1].name})")
     if args.embed:
@@ -332,6 +361,12 @@ def build_parser():
     pdf_opts.add_argument("--back-offset", type=float, nargs=2, default=(0.0, 0.0), metavar=("RIGHT", "DOWN"),
                           help="shift the back pages by RIGHT and DOWN millimetres (negative for left/up) to "
                                "compensate a printer whose second side lands off the first; default 0 0")
+    pdf_opts.add_argument("--back-ring", nargs="?", const=THEME_COLOR, metavar="COLOR",
+                          help="fill a ring around every back's cut circle instead of drawing the circle, so a cut "
+                               "that lands a little off shows colour instead of white paper; the theme's back_ring "
+                               "colour, or COLOR (#rrggbb); off by default")
+    pdf_opts.add_argument("--back-ring-width", type=float, metavar="MM",
+                          help="width of that ring outside the cut line in millimetres (theme default, else 2)")
 
     p = sub.add_parser("verify", help="check the plane construction")
     p.add_argument("order", type=int, nargs="?", default=7, help="prime order n; deck has n^2+n+1 cards")

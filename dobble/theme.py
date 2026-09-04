@@ -18,6 +18,10 @@ theme.json keys (all optional except name):
                 of each symbol's random 45-degree base orientation)
   outline       {"width": 0.025, "color": "#000000", "min_size": 600}: `prepare` strokes the
                 silhouette of every raw symbol (not the extras) with a solid border; absent = none
+  back_ring     {"color": "#rrggbb", "width": 2.0}: colour and width (mm outside the cut line)
+                of the filled ring that `--back-ring` draws around the cut circle on the back
+                pages in place of the cut line, so a slightly misaligned back shows colour
+                instead of white paper after cutting; a plain "#rrggbb" string is a shorthand
 
 Relative paths resolve against the folder of the theme.json that defines them, so an inherited
 `back` still points into the base theme's folder.
@@ -32,6 +36,7 @@ THEMES_ROOT = ROOT / "themes"
 DEFAULT_BACKGROUND = {"white_level": 245, "opaque_level": 200}
 DEFAULT_RENDER = {"base_size": 0.40, "gap": 0.015, "max_rotation": 40}
 DEFAULT_OUTLINE = {"width": 0.025, "color": "#000000", "min_size": 600}
+DEFAULT_BACK_RING = {"color": "#000000", "width": 2.0}
 
 
 @dataclass
@@ -52,6 +57,7 @@ class Theme:
     fetch: dict | None = None                           # {"script": Path, "args": [...]}
     render: dict = field(default_factory=lambda: dict(DEFAULT_RENDER))
     outline: dict | None = None                         # {"width", "color" as (r, g, b), "min_size"}
+    back_ring: dict | None = None                       # {"color" as (r, g, b), "width" in mm}
 
     @property
     def symbol_count(self):
@@ -74,6 +80,11 @@ def parse_color(c):
         return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
     r, g, b = c
     return (int(r), int(g), int(b))
+
+
+def hex_color(rgb):
+    """(r, g, b) -> '#rrggbb'."""
+    return "#%02x%02x%02x" % tuple(int(v) for v in rgb)
 
 
 def _read(name, root):
@@ -124,6 +135,15 @@ def load_theme(name, root=THEMES_ROOT):
     else:
         outline = None
 
+    back_ring = value("back_ring")
+    if back_ring is not None and back_ring is not False:
+        if not isinstance(back_ring, dict):
+            back_ring = {"color": back_ring}
+        back_ring = {**DEFAULT_BACK_RING, **back_ring}
+        back_ring = {"color": parse_color(back_ring["color"]), "width": float(back_ring["width"])}
+    else:
+        back_ring = None
+
     fetch = value("fetch")
     if fetch:
         d = merged["fetch"][1]
@@ -146,6 +166,7 @@ def load_theme(name, root=THEMES_ROOT):
         fetch=fetch,
         render={**DEFAULT_RENDER, **value("render", {})},
         outline=outline,
+        back_ring=back_ring,
     )
 
 

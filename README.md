@@ -54,6 +54,7 @@ deal with that; both work for `build`, `pdf` and `svg`:
 |---|---|---|
 | `--back-offset RIGHT DOWN` | shifts everything on the back pages (artwork and cut circles) by that many millimetres; negative values move left/up | `0 0`, off |
 | `--back-zoom FACTOR` | enlarges the back artwork past the cut line, so a small shift shows more artwork instead of white paper | theme's `back_zoom`, else 1.0 |
+| `--back-ring [COLOR]`, `--back-ring-width MM` | replaces the cut circle on the back pages with a filled ring around it, so a cut that lands a little off shows the ring colour instead of white paper; a bare `--back-ring` uses the theme's `back_ring` colour, `COLOR` (`#rrggbb`) overrides it. Pick a colour that matches the back artwork's edge | off; width from the theme, else 2 mm |
 
 To find the offset, print one sheet double-sided, hold it against the light and measure how far
 the back's cut circle sits from the front's. If the back is 2 mm too high, it has to move down:
@@ -107,6 +108,7 @@ other count.
 | `pockets` | `{"NNN": [[x, y], ...]}` seed pixels of white background pockets enclosed by the drawing | `{}` |
 | `background` | `white_level` / `opaque_level` thresholds for background removal | 245 / 200 |
 | `back`, `back_zoom` | card back image and how much to enlarge it past the cut line | none, 1.0 |
+| `back_ring` | `{"color": "#001449", "width": 2.0}` (or just `"#001449"`): colour and width (mm outside the cut line) of the ring that `--back-ring` draws around the cut circle on the back pages, so a slightly misaligned cut shows colour instead of white paper | none |
 | `fetch` | `{"script": "fetch.py", "args": [...]}`, run by `dobble fetch` with `--out <raw_dir>` | none |
 | `render` | defaults for `build`: `base_size`, `gap`, `max_rotation` | 0.40, 0.015, 40 |
 | `outline` | `{"width": 0.025, "color": "#000000"}`: `prepare` strokes the silhouette of every raw symbol with a solid border (the extras are copied as they are). `width` is a fraction of the symbol's long side; small sprites are upscaled to `min_size` (600 px) first so the stroke stays round. `prepare --outline WIDTH` / `--no-outline` override it | none |
