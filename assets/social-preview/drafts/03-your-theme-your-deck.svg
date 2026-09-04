@@ -42,9 +42,12 @@
       <path d="m16 0 1.2 3.2L20 4.5l-2.8 1.2L16 9l-1.2-3.3L12 4.5l2.8-1.3z"/>
       <path d="m5 2 .7 1.8 1.8.7-1.8.7L5 7l-.7-1.8-1.8-.7 1.8-.7z"/>
     </g>
-    <g id="automatic-layouts-icon" class="badge-icon" transform="translate(261 489)" aria-label="Automatic layout grid">
-      <rect x="0" y="0" width="6" height="6" rx="1"/><rect x="10" y="0" width="6" height="6" rx="1"/>
-      <rect x="0" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/>
+    <g id="automatic-layouts-icon" class="badge-icon" transform="translate(260 489)" aria-label="Symbols arranged on a round card">
+      <circle cx="8" cy="8" r="7.5"/>
+      <circle cx="8" cy="3.5" r="1.15" fill="#f4c86a" stroke="none"/>
+      <rect x="11.1" y="6.9" width="2.3" height="2.3" rx=".4" fill="#f4c86a" stroke="none"/>
+      <path d="m8 11.2 1.5 2.6h-3z" fill="#f4c86a" stroke="none"/>
+      <path d="m2.7 7.2 2.4.8-2.4.8z" fill="#f4c86a" stroke="none"/>
     </g>
     <g id="print-ready-icon" class="badge-icon" transform="translate(423 488)" aria-label="Printer">
       <path d="M5 6V1h10v5M5 14H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/>
